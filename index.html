@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>반응 속도 게임</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #game-area {
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+            background-color: blue;
+        }
+        #world-records {
+            margin-top: 20px;
+        }
+        #world-records li {
+            text-align: left;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        #nickname-form {
+            margin-bottom: 20px;
+        }
+        input, button {
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="nickname-form">
+            <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요">
+            <button id="start-button">게임 시작</button>
+        </div>
+        <div id="game-area" style="display: none;">클릭하여 시작</div>
+        <div id="world-records" style="display: none;">
+            <h2>세계 기록</h2>
+            <ol id="records-list"></ol>
+        </div>
+    </div>
+
+    <script>
+        let gameState = 'setup';
+        let startTime = null;
+        let worldRecords = [];
+        let nickname = '';
+        let changeTimeout = null;
+
+        const gameArea = document.getElementById('game-area');
+        const recordsList = document.getElementById('records-list');
+        const nicknameForm = document.getElementById('nickname-form');
+        const nicknameInput = document.getElementById('nickname-input');
+        const startButton = document.getElementById('start-button');
+        const worldRecordsDiv = document.getElementById('world-records');
+
+        // 로컬 스토리지에서 기록 불러오기
+        function loadRecords() {
+            const savedRecords = localStorage.getItem('reactionGameRecords');
+            if (savedRecords) {
+                worldRecords = JSON.parse(savedRecords);
+                updateRecordsList();
+            }
+        }
+
+        // 로컬 스토리지에 기록 저장하기
+        function saveRecords() {
+            localStorage.setItem('reactionGameRecords', JSON.stringify(worldRecords));
+        }
+
+        function startGame() {
+            gameState = 'ready';
+            gameArea.style.backgroundColor = 'blue';
+            gameArea.innerHTML = '초록색을 기다리세요...';
+            const changeTime = Math.floor(Math.random() * 4000) + 1000; // 1초에서 5초 사이
+            changeTimeout = setTimeout(() => {
+                gameState = 'go';
+                gameArea.style.backgroundColor = 'green';
+                gameArea.innerHTML = '클릭하세요!';
+                startTime = Date.now();
+            }, changeTime);
+        }
+
+        function handleGameAreaClick() {
+            if (gameState === 'waiting') {
+                startGame();
+            } else if (gameState === 'ready') {
+                clearTimeout(changeTimeout);
+                gameState = 'waiting';
+                gameArea.style.backgroundColor = 'red';
+                gameArea.innerHTML = '너무 빨랐어요!<br>다시 클릭하여 시작하세요.';
+            } else if (gameState === 'go') {
+                const reactionTime = Date.now() - startTime;
+                gameState = 'waiting';
+                gameArea.style.backgroundColor = 'blue';
+                gameArea.innerHTML = `반응 시간: ${reactionTime}ms<br>다시 클릭하여 시작하세요`;
+                updateWorldRecords(reactionTime);
+            }
+        }
+
+        function updateWorldRecords(newScore) {
+            worldRecords.push({ name: nickname, score: newScore });
+            worldRecords.sort((a, b) => a.score - b.score);
+            worldRecords = worldRecords.slice(0, 3); // 상위 3개의 기록만 유지
+            updateRecordsList();
+            saveRecords(); // 기록 업데이트 후 저장
+        }
+
+        function updateRecordsList() {
+            recordsList.innerHTML = '';
+            worldRecords.forEach((record, index) => {
+                const li = document.createElement('li');
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                li.textContent = `${medal} ${record.name}: ${record.score}ms`;
+                recordsList.appendChild(li);
+            });
+        }
+
+        startButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            nickname = nicknameInput.value.trim();
+            if (nickname) {
+                gameState = 'waiting';
+                nicknameForm.style.display = 'none';
+                gameArea.style.display = 'flex';
+                worldRecordsDiv.style.display = 'block'; // 세계 기록을 보이게 함
+                gameArea.style.backgroundColor = 'blue';
+                gameArea.innerHTML = '클릭하여 시작';
+            }
+        });
+
+        gameArea.addEventListener('click', handleGameAreaClick);
+
+        // 페이지 로드 시 기록 불러오기
+        loadRecords();
+    </script>
+</body>
+</html>
